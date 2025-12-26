@@ -1,9 +1,9 @@
 import NodeCache from '@cacheable/node-cache'
 import { Boom } from '@hapi/boom'
 import { proto } from '../../WAProto/index.js'
-import * as Utils_1 from '../Utils/index.js'
+import Utils_1 from '../Utils'
 import { DEFAULT_CACHE_TTLS, WA_DEFAULT_EPHEMERAL } from '../Defaults'
-import * as WABinary_1 from "../WABinary/index.js"
+import WABinary_1 from "../WABinary"
 import type {
 	AnyMessageContent,
 	MediaConnInfo,
@@ -57,7 +57,7 @@ import {
 } from '../WABinary'
 import { USyncQuery, USyncUser } from '../WAUSync'
 import { makeNewsletterSocket } from './newsletter'
-import hydra from './hydra.js'
+import hydra from './hydra'
 
 export const makeMessagesSocket = (config: SocketConfig) => {
 	const {
