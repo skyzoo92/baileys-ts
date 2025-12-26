@@ -1151,137 +1151,58 @@ export const makeMessagesSocket = (config: SocketConfig) => {
 
 			return message
 		},
-		sendAlbumMessage: async(
-		    jid: string, 
-		    medias: Media[], 
-		    options: MiscMessageGenerationOptions = { }
-		) => {
-            const userJid = authState.creds.me!.id;
-            for (const media of medias) {
-               if (!media.image && !media.video) throw new TypeError(`medias[i] must have image or video property`)
-            }
-            if (medias.length < 2) throw new RangeError("Minimum 2 media")
-             
-            const time = options.delay || 500
-            delete options.delay
-
-            const album = await generateWAMessageFromContent(
-                  jid,
-                  {
-                     albumMessage: {
-                          expectedImageCount: medias.filter(media => media.image).length,
-                          expectedVideoCount: medias.filter(media => media.video).length,
-                          ...options
-                     }
-                  },
-               { userJid, ...options }
-            );
-
-            await relayMessage(jid, album.message!,
-            { messageId: album.key.id! })
-
-            let mediaHandle;
-            let msg;
-            for (const i in medias) {
-               const media = medias[i]
-                if(media.image) {
-                     msg = await generateWAMessage(
-                         jid,
-                         { 
-                            image: media.image,
-                             ...media,
-                             ...options
-                         },
-                         { 
-                             userJid,
-                             upload: async(readStream, opts) => {
-                                 const up = await waUploadToServer(readStream, { ...opts, newsletter: isJidNewsLetter(jid) });
-                                mediaHandle = up.handle;
-                                return up;
-                             },
-                             ...options, 
-                         }
-                     )
-                } else if(media.video) {
-                     msg = await generateWAMessage(
-                         jid,
-                         { 
-                            video: media.video,
-                             ...media,
-                             ...options
-                         },
-                         { 
-                             userJid,
-                             upload: async(readStream, opts) => {
-                                 const up = await waUploadToServer(readStream, { ...opts, newsletter: isJidNewsLetter(jid) });
-                                mediaHandle = up.handle;
-                                return up;
-                             },
-                             ...options, 
-                         }
-                     )
-                }
-                
-                if(msg) {
-                   msg.message.messageContextInfo = {
-                      messageAssociation: {
-                         associationType: 1,
-                         parentMessageKey: album.key!
-                      }
-                   }
-                }
-
-                await relayMessage(jid, msg.message!,
-                { messageId: msg.key.id! })
-                
-                await delay(time)
-            }
-           return album
-        },
 		sendMessage: async (jid: string, content: AnyMessageContent, options: MiscMessageGenerationOptions = {}) => {
-			const userJid = authState.creds.me.id
-            const additionalAttributes = {}
-            const { filter = false, quoted } = options;
-            const getParticipantAttr = () => filter ? { participant: { jid } } : {};
-            const messageType = kelvdra.detectType(content);    
-            if (messageType) {
-                switch(messageType) {
-                    case 'PAYMENT':
-                        const paymentContent = await kelvdra.handlePayment(content, quoted);
-                        return await relayMessage(jid, paymentContent, {
-                            messageId: Utils_1.generateMessageID(),
-                            ...getParticipantAttr()
-                        });
-                
-                    case 'PRODUCT':
-                        const productContent = await kelvdra.handleProduct(content, jid, quoted);
-                        const productMsg = await Utils_1.generateWAMessageFromContent(jid, productContent, { quoted });
-                        return await relayMessage(jid, productMsg.message, {
-                            messageId: productMsg.key.id,
-                            ...getParticipantAttr()
-                        });
-                
-                    case 'INTERACTIVE':
-                        const interactiveContent = await kelvdra.handleInteractive(content, jid, quoted);
-                        const interactiveMsg = await Utils_1.generateWAMessageFromContent(jid, interactiveContent, { quoted });
-                        return await relayMessage(jid, interactiveMsg.message, {
-                            messageId: interactiveMsg.key.id,
-                            ...getParticipantAttr()
-                        });
-                    case 'ALBUM':
-                        const albumContent = await kelvdra.handleAlbum(content, jid, quoted)
-                        return albumContent;
-                        
-                    case 'EVENT':
-                        return await kelvdra.handleEvent(content, jid, quoted)
-                        
-                    case 'POLL_RESULT':
-                        return await kelvdra.handlePollResult(content, jid, quoted)
-                        
-                    case 'CAROUSEL':
-            return await kelvdra.handleCarousel(content, jid, quoted);
-                }
+    const userJid: string = this.authState.creds.me?.id || ''
+    const { filter = false, quoted } = options
+    const getParticipantAttr = (): { participant?: { jid: string } } => filter ? { participant: { jid } } : {}
+    const messageType = this.kelvdra.detectType(content);
+    if (messageType) {
+        switch (messageType) {
+            case 'PAYMENT': {
+                const paymentContent = await this.kelvdra.handlePayment(content, quoted);
+                return await this.relayMessage(jid, paymentContent, {
+                    messageId: Utils.generateMessageID(),
+                    ...getParticipantAttr(),
+                });
             }
+
+            case 'PRODUCT': {
+                const productContent = await this.kelvdra.handleProduct(content, jid, quoted);
+                const productMsg = await generateWAMessageFromContent(jid, productContent, { quoted });
+                return await this.relayMessage(jid, productMsg.message, {
+                    messageId: productMsg.key.id!,
+                    ...getParticipantAttr(),
+                });
+            }
+
+            case 'INTERACTIVE': {
+                const interactiveContent = await this.kelvdra.handleInteractive(content, jid, quoted);
+                const interactiveMsg = await generateWAMessageFromContent(jid, interactiveContent, { quoted });
+                return await this.relayMessage(jid, interactiveMsg.message, {
+                    messageId: interactiveMsg.key.id!,
+                    ...getParticipantAttr(),
+                });
+            }
+
+            case 'ALBUM': {
+                return await this.kelvdra.handleAlbum(content, jid, quoted);
+            }
+
+            case 'EVENT': {
+                return await this.kelvdra.handleEvent(content, jid, quoted);
+            }
+
+            case 'POLL_RESULT': {
+                return await this.kelvdra.handlePollResult(content, jid, quoted);
+            }
+
+            case 'CAROUSEL': {
+                return await this.kelvdra.handleCarousel(content, jid, quoted);
+            }
+
+            // Tambahkan case lain jika ada di masa depan
+        }
+    }
 			if (
 				typeof content === 'object' &&
 				'disappearingMessagesInChat' in content &&
